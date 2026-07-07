@@ -149,6 +149,9 @@ BLUE = (0, 0, 255)
 MAGENTA = (255, 0, 255)
 NAVY = (0, 0, 128)
 GOLD = (255, 215, 0)
+NEON_PINK = (255, 50, 150)
+NEON_RED = (255, 50, 50)
+GRAY = (128, 128, 128) 
 # ===↑色定義↑===
 
 # ======↑定数定義↑======
@@ -583,6 +586,192 @@ class BossPlayerBullet(BossBaseBullet):
         self.exact_y += self.vy
         super().update()
 
+
+class BossCurveBullet(BossBaseBullet):
+    """
+    曲がるような弾幕を発射させるもの
+    ボス戦に使用する
+    """
+
+    def __init__(self, target_rect: pg.Rect, rect: pg.Rect, speed: float):
+        """
+        引数：プレイヤーRect, 敵Rect, 速さ（float）
+        """
+        super().__init__(rect, NEON_PINK)
+        dx = target_rect.centerx - rect.centerx
+        dy = target_rect.centery - rect.centery
+        self.base_rad = math.atan2(dy, dx)
+        self.current_speed = speed  # 初期速度
+        self.max_speed = speed + 5  # 速度上限
+        self.accel = 0.1  # 1フレームあたりの加速度
+        if random.random() <= 0.5:
+            start_error = 45  # 20度上の誤差
+            self.curve_speed = -1  # 毎フレームごとに曲げていく値
+        else:
+            start_error = -45  # 20度下の誤差
+            self.curve_speed = 1  # 毎フレームごとに曲げていく値
+        self.rad = self.base_rad + math.radians(start_error)
+        self.vx = self.current_speed * math.cos(self.rad)
+        self.vy = self.current_speed * math.sin(self.rad)
+
+    def update(self):
+        """
+        弾幕の座標の計算をして、親のupdateを呼ぶ
+        """
+        if self.current_speed < self.max_speed:
+            self.current_speed += self.accel
+            if self.current_speed > self.max_speed:
+                self.current_speed = self.max_speed
+        self.rad += math.radians(self.curve_speed)
+        self.vx = self.current_speed * math.cos(self.rad)
+        self.vy = self.current_speed * math.sin(self.rad)
+        self.exact_x += self.vx
+        self.exact_y += self.vy
+        super().update()
+
+
+class BossLinearBullet(BossBaseBullet):
+    """
+    ある時点でのプレイヤーの座標を取得して、そこへ弾幕を発射させるもの
+    ボス戦に使用する
+    """
+
+    def __init__(self, target_rect: pg.Rect, rect: pg.Rect, speed: float, color: tuple):
+        """
+        引数：プレイヤーRect, 敵Rect, 速さ（float）, color
+        """
+        super().__init__(rect, color)
+        dx = target_rect.centerx - rect.centerx
+        dy = target_rect.centery - rect.centery
+        rad = math.atan2(dy, dx)
+        self.vx = speed * math.cos(rad)
+        self.vy = speed * math.sin(rad)  
+
+    def update(self):
+        """
+        弾幕の座標の計算をして、親のupdateを呼ぶ
+        """
+        self.exact_x += self.vx
+        self.exact_y += self.vy
+        super().update()
+
+
+class BossShotgunBullet(BossBaseBullet):
+    """
+    散弾（中心で拡散）を発射させるもの
+    ボス戦に使用する
+    """
+
+    def __init__(self, rect: pg.Rect, speed: float, bullet_group: pg.sprite.Group):
+        """
+        引数：敵Rect, 速さ（float, 敵の弾幕グループ（pygame.sprite.Group）
+        """
+        super().__init__(rect, BLUE)
+        self.bullet_group = bullet_group
+        self.speed = speed
+        self.target_x = WIDTH // 2
+        self.target_y = HEIGHT // 2
+        dx = self.target_x - rect.centerx
+        dy = self.target_y - rect.centery
+        self.dis = math.hypot(dx, dy)
+        rad = math.atan2(dy, dx)
+        self.vx = speed * math.cos(rad)
+        self.vy = speed * math.sin(rad)
+
+    def update(self):
+        """
+        弾幕の座標の計算をして、親のupdateを呼ぶ
+        """
+        # 現時点の位置と中心までの距離を計算
+        dist = math.hypot(self.target_x - self.exact_x, self.target_y - self.exact_y)
+        breke_num = dist / self.dis
+        # 中心に達したか判定
+        if dist <= self.speed:
+            diff_num = 12  # 散弾の数
+            # 散弾の発生源となるRectの作成
+            shot_rect = pg.Rect(int(self.exact_x), int(self.exact_y), 10, 10)
+            for i in range(diff_num):
+                diffusion_bullet = BossDiffusionBullet(shot_rect, 4, diff_num, i, BLUE)
+                self.bullet_group.add(diffusion_bullet)
+            self.kill()
+            return
+
+        self.exact_x += self.vx * breke_num
+        self.exact_y += self.vy * breke_num
+        super().update()
+
+    
+class BossPreviewBullet(BossBaseBullet):
+    """
+    予告線に沿って高速で弾幕を発射させるもの
+    ボス戦に使用する
+    """
+
+    def __init__(self, player_rect: pg.Rect, speed: float):
+        """
+        引数：プレイヤーの中心座標, 速さ
+        """
+
+        start_x = player_rect[0] + random.randint(-200, 200)
+        self.start_pos = (start_x, -20)
+        dummy_rect = pg.Rect(start_x, -20, 10, 10)
+        super().__init__(dummy_rect, RED)
+        self.radius = 5
+        target_pos = (player_rect[0] + random.randint(-200, 200), player_rect[1])
+        dx = target_pos[0] - self.start_pos[0]
+        dy = target_pos[1] - self.start_pos[1]
+        dist = math.hypot(dx, dy)
+        if dist != 0:
+            self.preview_vx = (dx / dist) * speed
+            self.preview_vy = (dy / dist) * speed
+        else:
+            self.preview_vx, self.preview_vy = 0, speed
+
+        if self.preview_vy > 0:
+            t_y = (HEIGHT - self.start_pos[1]) / self.preview_vy
+        else:
+            t_y = float('inf')  # 零除算を防ぐ
+        if self.preview_vx > 0:
+            t_x = (x_right_outline - self.start_pos[0]) / self.preview_vx
+        elif self.preview_vx < 0:
+            t_x = (x_left_outline - self.start_pos[0]) / self.preview_vx
+        else:
+            t_x = float('inf')  # 真下
+
+        t = min(t_x, t_y)
+
+        self.line_end = (
+            self.start_pos[0] + self.preview_vx * t,
+            self.start_pos[1] + self.preview_vy * t,
+        )
+
+        self.vx = 0
+        self.vy = 0
+
+        self.tmr = 0
+        self.preview_time = 60
+
+    def update(self):
+        self.tmr += 1
+        if self.tmr == self.preview_time:
+            self.vx = self.preview_vx
+            self.vy = self.preview_vy
+
+        self.exact_x += self.vx
+        self.exact_y += self.vy
+
+        super().update()
+    
+    def draw_preview_line(self, screen: pg.Surface):
+        """
+        予告線を表示させるもの
+        引数：screen（画面Surface）
+        """
+        limit_time = self.preview_time - 20
+        if self.tmr < limit_time:
+            cycle = limit_time // 3
+            if (self.tmr % cycle) < (cycle // 2):
+                pg.draw.line(screen, GRAY, self.start_pos, self.line_end, 1)
     
 # ===↑class定義↑===
 
@@ -747,12 +936,29 @@ def lastbattle(screen: pg.Surface, clock: pg.time.Clock):
             space_judge = False
         player_bullets.update()
         # 弾処理(敵)
+        # 予告弾
+        if tmr % 360 == 0:
+            for _ in range(7):
+                preview_bullet = BossPreviewBullet(player_rct.center, 50)
+                enemy_bullets.add(preview_bullet)
+        # 散弾
+        if tmr % 300 == 0:
+            shotgun_bullet = BossShotgunBullet(enemy_rct, 5, enemy_bullets)
+            enemy_bullets.add(shotgun_bullet)
         # 拡散弾
         if tmr % 120 == 0:
             diff_num = 8
             for i in range(diff_num):
                 diffusion_bullet = BossDiffusionBullet(enemy_rct, 3, diff_num, i, GOLD)
                 enemy_bullets.add(diffusion_bullet)
+        # 直線弾
+        if tmr % 90 in [0, 5, 10]:
+            linear_bullet = BossLinearBullet(player_rct, enemy_rct, 4, NEON_RED)
+            enemy_bullets.add(linear_bullet)
+        # 曲線弾
+        if tmr % 60 in [0, 5, 10]:
+            curve_bullet = BossCurveBullet(player_rct, enemy_rct, 6)
+            enemy_bullets.add(curve_bullet)
         enemy_bullets.update()
         player_bullets.draw(screen)
         enemy_bullets.draw(screen)
