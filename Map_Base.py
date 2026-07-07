@@ -137,7 +137,6 @@ WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
-PURPLE=(170,80,255)
 # ===↑色定義↑===
 
 # ======↑定数定義↑======
@@ -288,8 +287,8 @@ class MinigameTile(pg.sprite.Sprite):
         引数:マスの中心座標,tuple(x,y)
         """
         super().__init__()
-        self.image=pg.Surface((55,55))  #イベントマス画像
-        self.image.fill(PURPLE) 
+        self.image=pg.image.load("img/mark_exclamation.png")  #イベントマス画像
+        self.image=pg.transform.scale(self.image,(52,52))
         self.rect = self.image.get_rect(center = coor)  # rect.centerにcoorを設定
 
     
