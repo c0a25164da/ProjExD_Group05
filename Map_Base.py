@@ -253,6 +253,18 @@ class GameMap:
                     positions.append(self.map_data[row][col]["coor"])
         return positions
     
+    def get_boss_positions(self) -> list[tuple[int, int]]:
+        """
+        ボスが配置されているマスの中心座標を取得する
+        戻り値：ボスが配置されているマスの中心座標tupleが格納されたlist
+        """
+        positions = []  # 敵がいるマスの中心座標を格納するもの
+        for row in range(self.y_num):
+            for col in range(self.x_num):
+                if self.map_data[row][col]["type"] == 3:
+                    positions.append(self.map_data[row][col]["coor"])
+        return positions
+    
     def get_id(self, x: int, y: int) -> tuple[int, int]:
         """
         座標からマス目idを求めるもの
@@ -299,6 +311,20 @@ class Enemy(pg.sprite.Sprite):
         self.image.fill(RED)  # 現時点仮の敵
         self.rect = self.image.get_rect(center = coor)  # rect.centerにcoorを設定
 
+
+class Boss(pg.sprite.Sprite):
+    """
+    ラスボスに関するもの
+    """
+
+    def __init__(self, coor: tuple[int, int]):
+        """
+        引数：マスの中心座標tuple(x, y)
+        """
+        super().__init__()
+        self.image = pg.Surface((40, 40))  # 現時点仮の敵画像
+        self.image.fill(NAVY)  # 現時点仮の敵
+        self.rect = self.image.get_rect(center = coor)  # rect.centerにcoorを設定
 
 class Player(pg.sprite.Sprite):
     """
@@ -430,7 +456,7 @@ class BossPlayer(pg.sprite.Sprite):
             if key_lst[key]:
                 next_coor[0] += mv[0]
                 next_coor[1] += mv[1]
-        beside, vertical = check_range(self.outline_left, self.outline_right, next_coor)
+        beside, vertical = boss_check_range(self.outline_left, self.outline_right, next_coor)
         if beside: 
             self.rect.centerx = next_coor[0]
         if vertical:
@@ -470,7 +496,7 @@ class BossEnemy(pg.sprite.Sprite):
         """
         next_coor = list(self.rect.center)
         next_coor[1] += self.vy
-        beside, vertical = check_range(self.outline_left, self.outline_right, next_coor)
+        beside, vertical = boss_check_range(self.outline_left, self.outline_right, next_coor)
         if vertical:
             self.rect.centery = next_coor[1]
         else:
@@ -563,7 +589,7 @@ class BossPlayerBullet(BossBaseBullet):
 
 # ===↓関数定義↓===
 
-def check_range(outline_left_rct: pg.Rect, outline_right_rct: pg.Rect, coor: list) -> tuple[bool, bool]:
+def boss_check_range(outline_left_rct: pg.Rect, outline_right_rct: pg.Rect, coor: list) -> tuple[bool, bool]:
     """
     移動範囲制限関数
     ボス戦に使用する
@@ -593,9 +619,13 @@ def main():
     # マップ番号(1, 1) 中心
     game_map.load_map(current_map_y, current_map_x)  # マップロード
     enemys = pg.sprite.Group()  # 敵のグループ作成
+    bossgp = pg.sprite.Group()
     # 敵の座標読み込み
     for coor in game_map.get_enemy_positions():
         enemys.add(Enemy(coor))
+    # ボス座標読み込み
+    for coor in game_map.get_boss_positions():
+        bossgp.add(Boss(coor))
     start_coor = game_map.get_cell(5, 10)["coor"]  # 初期位置
     player = Player(start_coor, game_map)  # プレイヤー定義
     players = pg.sprite.GroupSingle(player)  # プレイヤー用グループ（単体）
@@ -635,19 +665,26 @@ def main():
                     # 新しいマップをロード
                     game_map.load_map(current_map_y, current_map_x)
                     enemys.empty()  # 移動前のマップに表示されている敵を削除
+                    bossgp.empty()  # 移動前のマップに表示されているボスを削除
                     # 敵の座標読み込み
                     for coor in game_map.get_enemy_positions():
                         enemys.add(Enemy(coor))
+                    # ボスの座標読み込み
+                    for coor in game_map.get_boss_positions():
+                        bossgp.add(Boss(coor))
                     # プレイヤーを更新
                     player.rect.center = game_map.get_cell(player.row, player.col)["coor"]
                 if game_map.check_move(player.row, player.col) == 2:  # 移動した先が敵かの判定
                     pass  # ここにバトルイベントなどを追加
+                if game_map.check_move(player.row, player.col) == 3:  # 移動した先がボスかの判定
+                    lastbattle(screen, clock)
 
         screen.fill(WHITE)  # 背景仮(一番最初に描画)
         game_map.update_line(screen)  # 枠線表示（デバッグ用）
 
         game_map.update(screen)  # 岩を描画
         enemys.draw(screen)  # 敵を描画
+        bossgp.draw(screen)  # ボスを描画
         players.draw(screen)  # プレイヤーを描画
 
 
@@ -656,6 +693,10 @@ def main():
 
 # ボス戦（弾幕ゲー）用関数
 def lastbattle(screen: pg.Surface, clock: pg.time.Clock):
+    """
+    ボス戦の弾幕ゲーを処理する関数
+    引数：画像Surface, pg.time.Clock
+    """
     outline_left = BossOutline(x_left_outline)  # 左側境界線
     outline_right = BossOutline(x_right_outline)  # 右側境界線
     # 敵
