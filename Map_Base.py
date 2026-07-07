@@ -71,8 +71,8 @@ SEEDS =[
             [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1],
             [1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1],
             [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1],
+            [0, 0, 5, 5, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1, 0, 1, 1, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1],
             [1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1],
             [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
             [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -137,6 +137,7 @@ WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+PURPLE = (255, 0, 255)
 # ===↑色定義↑===
 
 # ======↑定数定義↑======
@@ -161,6 +162,7 @@ class GameMap:
         self.hei = HEIGHT // y_num
         self.map_data = self._create_map_data()
         self.rocks = pg.sprite.Group()  # 岩のグループ作成
+        self.traps = pg.sprite.Group()  # 罠のグループ作成
 
     def _create_map_data(self) -> list[list[dict]]:
         """
@@ -210,12 +212,16 @@ class GameMap:
         引数：読み込みたいマップの番号map_y(0, 1, 2), map_x(0, 1, 2)
         """
         self.rocks.empty()  # 前のマップの岩を全て削除
+        self.traps.empty()  # 前のマップの罠を消去
         seed = SEEDS[map_y][map_x]  # 指定された座標のマップのデータを取得
         for row in range(self.y_num):
             for col in range(self.x_num):
                 if seed[row][col] == 1:  # 岩のマスか判定
                     rock = Rock(self.map_data[row][col]["coor"])  # 岩を生成
                     self.rocks.add(rock)  # 岩を岩グループに追加
+                elif seed[row][col] == 5:  # 5だったら罠を作る
+                    trap = Trap(self.map_data[row][col]["coor"]) #罠生成
+                    self.traps.add(trap) #罠を罠グループに追加
                 self.map_data[row][col]["type"] = seed[row][col]  # seedに沿ってtypeを上書（マップ形成）
 
     def check_move(self, row: int, col: int) -> int:
@@ -257,6 +263,7 @@ class GameMap:
         引数：画像Surface
         """
         self.rocks.draw(screen)
+        self.traps.draw(screen)
 
 
 class Rock(pg.sprite.Sprite):
@@ -327,6 +334,17 @@ class Player(pg.sprite.Sprite):
             self.col = next_col
             self.rect.center = self.game_map.get_cell(self.row, self.col)["coor"]
         return None
+    
+class Trap(pg.sprite.Sprite):
+    """
+    罠に関するもの（見える罠）
+    今回は毒
+    """
+    def __init__(self, coor: tuple[int, int]):
+        super().__init__()
+        self.image = pg.Surface((30, 30))  # プレイヤーより少し小さめのサイズ
+        self.image.fill(PURPLE)            # 紫で見えるようにする
+        self.rect = self.image.get_rect(center=coor)
     
 # ===↑class定義↑===
 
