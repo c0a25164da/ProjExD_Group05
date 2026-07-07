@@ -17,6 +17,9 @@ FPS = 60  # フレーム数
 MARGIN = 10  # ボス専用
 MOVE_SPEED = 5  # ボス専用
 MAX_LIFE = 20  # 体力数指定, ボス専用
+# 動作範囲横幅判定
+x_left_outline = WIDTH // 25  # ボス専用
+x_right_outline = WIDTH - x_left_outline - 1  # ボス専用
 
 # マップのデータ（シード値）を格納しているもの（0：道、移動可能, 1：障害物、移動不可, 2：敵, 3：ラスボス）
 SEEDS =[
@@ -144,6 +147,8 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 MAGENTA = (255, 0, 255)
+NAVY = (0, 0, 128)
+GOLD = (255, 215, 0)
 # ===↑色定義↑===
 
 # ======↑定数定義↑======
@@ -432,9 +437,10 @@ class BossPlayer(pg.sprite.Sprite):
             self.rect.centery = next_coor[1]
 
 
-class Enemy(pygame.sprite.Sprite):
+class BossEnemy(pg.sprite.Sprite):
     """
     敵関係のもの
+    ボス戦に使用する
     """
     MOVE_ENEMY = {
         "up" : (0, -(MOVE_SPEED // 2)),
@@ -443,15 +449,15 @@ class Enemy(pygame.sprite.Sprite):
         "right" : (0, MOVE_SPEED // 2),
     }
     
-    def __init__(self, outline_left: pygame.Rect, outline_right: pygame.Rect):
+    def __init__(self, outline_left: pg.Rect, outline_right: pg.Rect):
         """
         引数：左側境界線Rect, 右側境界線Rect
         """
         super().__init__()
-        self.image = pygame.image.load("img/enemy.png").convert_alpha()
-        self.image = pygame.transform.scale(self.image, (32, 32))
+        self.image = pg.image.load("img/enemy.png").convert_alpha()
+        self.image = pg.transform.scale(self.image, (32, 32))
         self.rect = self.image.get_rect()
-        self.rect.center = [(X_WINDOW // 4)*3, Y_WINDOW // 2]
+        self.rect.center = [(WIDTH // 4)*3, HEIGHT // 2]
         self.radius = 16  # 当たり判定用半径
         self.outline_left = outline_left
         self.outline_right = outline_right
@@ -470,6 +476,86 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.vy *= -1
         return beside, vertical
+    
+
+class BossBaseBullet(pg.sprite.Sprite):
+    """
+    弾幕関係のもと
+    ボス戦に使用する
+    """
+
+    def __init__(self, rect: pg.Rect, color: tuple):
+        """
+        引数：発射地Rect, color
+        """
+        super().__init__()
+        self.image = pg.Surface((10, 10))
+        self.image.set_colorkey(BLACK)
+        pg.draw.circle(self.image, color, (5, 5), 5)
+        self.rect = self.image.get_rect()
+        self.rect.center = rect.center
+        self.radius = 5  # 当たり判定用半径
+        # 小数の計算結果をストックする
+        self.exact_x = float(self.rect.centerx)
+        self.exact_y = float(self.rect.centery)
+
+    def update(self):
+        """
+        弾の座標更新と、画面外に出た時の削除処理
+        """
+        # 当たり判定のためにint化
+        self.rect.centerx = int(self.exact_x)
+        self.rect.centery = int(self.exact_y)
+
+        if not ((self.rect.left >= x_left_outline) and (self.rect.right <= x_right_outline) and (self.rect.top >= -50) and (self.rect.bottom <= HEIGHT + 50)):
+            self.kill()
+
+
+class BossDiffusionBullet(BossBaseBullet):
+    """
+    拡散する弾幕
+    ボス戦に使用する
+    """
+
+    def __init__(self, rect: pg.Rect, speed: float, diff_num: int, index: int, color: tuple):
+        """
+        引数：敵Rect, 速さ（float）, 個数（int）, 弾の番号（int）, color
+        """
+        super().__init__(rect, color)
+        degree = (360.0 / diff_num) * index
+        self.vx = speed * math.cos(math.radians(degree))
+        self.vy = speed * math.sin(math.radians(degree))
+
+    def update(self):
+        """
+        弾幕の座標の計算をして、親のupdateを呼ぶ
+        """
+        self.exact_x += self.vx
+        self.exact_y += self.vy
+        super().update()
+
+
+class BossPlayerBullet(BossBaseBullet):
+    """
+    プレイヤーの弾幕(直線)を生成するもの
+    ボス戦に使用する
+    """
+
+    def __init__(self, rect: pg.Rect, speed: float):
+        """
+        引数：プレイヤーRect, 速さ
+        """
+        super().__init__(rect, NAVY)
+        self.vx = speed
+        self.vy = 0
+
+    def update(self):
+        """
+        弾幕の座標の計算をして、親のupdateを呼ぶ
+        """
+        self.exact_x += self.vx
+        self.exact_y += self.vy
+        super().update()
 
     
 # ===↑class定義↑===
@@ -477,6 +563,20 @@ class Enemy(pygame.sprite.Sprite):
 
 # ===↓関数定義↓===
 
+def check_range(outline_left_rct: pg.Rect, outline_right_rct: pg.Rect, coor: list) -> tuple[bool, bool]:
+    """
+    移動範囲制限関数
+    ボス戦に使用する
+    引数：左側境界線Rect, 右側境界線Rect, 座標list[x, y]
+    戻り値：判定結果タプル（横判定結果, 縦判定結果）
+    True：範囲内 / False：範囲外
+    """
+    beside, vertical = True, True
+    if (outline_right_rct.left - MARGIN < coor[0]) or (outline_left_rct.right + MARGIN > coor[0]):  # 横判定
+        beside = False
+    if (MARGIN > coor[1]) or (HEIGHT - MARGIN < coor[1]):  # 縦判定
+        vertical = False
+    return (beside, vertical)
 
 # ===↑関数定義↑===
 
@@ -555,11 +655,89 @@ def main():
         clock.tick(FPS)
 
 # ボス戦（弾幕ゲー）用関数
-def lastbattle():
-    # 動作範囲横幅判定
-    x_left_outline = WHITE // 25
-    x_right_outline = WHITE - x_left_outline - 1
+def lastbattle(screen: pg.Surface, clock: pg.time.Clock):
+    outline_left = BossOutline(x_left_outline)  # 左側境界線
+    outline_right = BossOutline(x_right_outline)  # 右側境界線
+    # 敵
+    enemy = pg.sprite.GroupSingle()
+    enemy.add(BossEnemy(outline_left.rct, outline_right.rct))
+    # プレイヤー
+    player = pg.sprite.GroupSingle()
+    player.add(BossPlayer(outline_left.rct, outline_right.rct))
+    enemy_bullets = pg.sprite.Group()  # 弾幕描画(敵)
+    player_bullets = pg.sprite.Group()  # 弾幕描画(プレイヤー)
+    # 体力描画
+    player_lifes = pg.sprite.Group()
+    enemy_lifes = pg.sprite.Group()
+    # 変数定義
+    for coors in BossLife.life_coor:
+        player_lifes.add(BossLife(coors[0]))
+        enemy_lifes.add(BossLife(coors[1]))
+    tmr = 0  # 1フレームごとのカウント
+    seconds = 0  # 1秒ごとのカウント
+    # bool型定義(判定)
+    space_judge = False
 
+    while True:
+        for event in pg.event.get():
+            if event.type == pg.QUIT: return
+
+            if event.type == pg.KEYDOWN:
+                if event.key == pg.K_SPACE:
+                    space_judge = True
+
+        screen.fill(WHITE)
+        outline_left.update(screen)
+        outline_right.update(screen)
+        # プレイヤー移動処理
+        Key_lst = pg.key.get_pressed()
+        player.update(Key_lst)
+        player_rct = player.sprite.rect
+        player.draw(screen)
+        # 敵移動処理
+        bound_check = enemy.sprite.update()
+        enemy_rct = enemy.sprite.rect
+        enemy.draw(screen)
+        # 弾処理(プレイヤー)
+        if space_judge:
+            player_bullet = BossPlayerBullet(player_rct, 10)
+            player_bullets.add(player_bullet)
+            space_judge = False
+        player_bullets.update()
+        # 弾処理(敵)
+        # 拡散弾
+        if tmr % 120 == 0:
+            diff_num = 8
+            for i in range(diff_num):
+                diffusion_bullet = BossDiffusionBullet(enemy_rct, 3, diff_num, i, GOLD)
+                enemy_bullets.add(diffusion_bullet)
+        enemy_bullets.update()
+        player_bullets.draw(screen)
+        enemy_bullets.draw(screen)
+        for bullet in enemy_bullets.sprites():
+            if hasattr(bullet, "draw_preview_line"):
+                bullet.draw_preview_line(screen)
+        # ダメージ処理(プレイヤー)
+        if pg.sprite.spritecollide(player.sprite, enemy_bullets, True, pg.sprite.collide_circle):
+            if len(player_lifes) > 0:
+                player_lifes.sprites()[0].kill()
+            if len(player_lifes) == 0:
+                break
+        # ダメージ処理(敵)
+        if pg.sprite.spritecollide(enemy.sprite, player_bullets, True, pg.sprite.collide_circle):
+            if len(enemy_lifes) > 0:
+                enemy_lifes.sprites()[0].kill()
+            if len(enemy_lifes) == 0:
+                break
+        # 体力処理
+        player_lifes.draw(screen)
+        enemy_lifes.draw(screen)
+
+        pg.display.update()
+        tmr += 1
+        if tmr % FPS == 0:
+            seconds += 1
+        clock.tick(FPS)
 
 
 if __name__ == "__main__":
