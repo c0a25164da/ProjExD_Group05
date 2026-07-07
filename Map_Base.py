@@ -793,6 +793,32 @@ def boss_check_range(outline_left_rct: pg.Rect, outline_right_rct: pg.Rect, coor
         vertical = False
     return (beside, vertical)
 
+
+def game_over(screen: pg.Surface):
+    """
+    GAMEOVER画面を表示するもの
+    """
+    fonto = pg.font.Font(None, 100)
+    txt = fonto.render("GAME OVER", True, RED)
+    txt_rect = txt.get_rect(center = (WIDTH // 2, HEIGHT // 2))  # テキストを画面の中央に配置
+    screen.fill(BLACK)
+    screen.blit(txt, txt_rect)
+    pg.display.update()
+    time.sleep(2)
+
+
+def game_clear(screen: pg.Surface):
+    """
+    GAMECLEAR画面を表示するもの
+    """
+    fonto = pg.font.Font(None, 100)
+    txt = fonto.render("GAME CLEAR", True, GOLD)
+    txt_rect = txt.get_rect(center = (WIDTH // 2, HEIGHT // 2))  # テキストを画面の中央に配置
+    screen.fill(BLUE)
+    screen.blit(txt, txt_rect)
+    pg.display.update()
+    time.sleep(2)
+
 # ===↑関数定義↑===
 
 
@@ -898,14 +924,13 @@ def lastbattle(screen: pg.Surface, clock: pg.time.Clock):
     enemy_bullets = pg.sprite.Group()  # 弾幕描画(敵)
     player_bullets = pg.sprite.Group()  # 弾幕描画(プレイヤー)
     # 体力描画
-    player_lifes = pg.sprite.Group()
-    enemy_lifes = pg.sprite.Group()
+    player_lifes = pg.sprite.Group()  # プレイヤーの体力用Group
+    enemy_lifes = pg.sprite.Group()  # 敵の体力用Group
     # 変数定義
     for coors in BossLife.life_coor:
         player_lifes.add(BossLife(coors[0]))
         enemy_lifes.add(BossLife(coors[1]))
     tmr = 0  # 1フレームごとのカウント
-    seconds = 0  # 1秒ごとのカウント
     # bool型定義(判定)
     space_judge = False
 
@@ -915,7 +940,7 @@ def lastbattle(screen: pg.Surface, clock: pg.time.Clock):
 
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_SPACE:
-                    space_judge = True
+                    space_judge = True  # プレイヤーの攻撃判定
 
         screen.fill(WHITE)
         outline_left.update(screen)
@@ -923,14 +948,14 @@ def lastbattle(screen: pg.Surface, clock: pg.time.Clock):
         # プレイヤー移動処理
         Key_lst = pg.key.get_pressed()
         player.update(Key_lst)
-        player_rct = player.sprite.rect
+        player_rct = player.sprite.rect  # プレイヤーのRectを取得
         player.draw(screen)
         # 敵移動処理
-        bound_check = enemy.sprite.update()
-        enemy_rct = enemy.sprite.rect
+        bound_check = enemy.sprite.update()  # 戻り値があるため格納(未使用)
+        enemy_rct = enemy.sprite.rect  # 敵のRectを取得
         enemy.draw(screen)
         # 弾処理(プレイヤー)
-        if space_judge:
+        if space_judge:  # プレイヤーがスペースを押したら攻撃弾を発射
             player_bullet = BossPlayerBullet(player_rct, 10)
             player_bullets.add(player_bullet)
             space_judge = False
@@ -947,35 +972,37 @@ def lastbattle(screen: pg.Surface, clock: pg.time.Clock):
             enemy_bullets.add(shotgun_bullet)
         # 拡散弾
         if tmr % 120 == 0:
-            diff_num = 8
+            diff_num = 8  # 拡散弾の数
             for i in range(diff_num):
                 diffusion_bullet = BossDiffusionBullet(enemy_rct, 3, diff_num, i, GOLD)
                 enemy_bullets.add(diffusion_bullet)
         # 直線弾
-        if tmr % 90 in [0, 5, 10]:
+        if tmr % 90 in [0, 5, 10]:  # 三連で発射
             linear_bullet = BossLinearBullet(player_rct, enemy_rct, 4, NEON_RED)
             enemy_bullets.add(linear_bullet)
         # 曲線弾
-        if tmr % 60 in [0, 5, 10]:
+        if tmr % 60 in [0, 5, 10]:  # 三連で発射
             curve_bullet = BossCurveBullet(player_rct, enemy_rct, 6)
             enemy_bullets.add(curve_bullet)
         enemy_bullets.update()
         player_bullets.draw(screen)
         enemy_bullets.draw(screen)
         for bullet in enemy_bullets.sprites():
-            if hasattr(bullet, "draw_preview_line"):
+            if hasattr(bullet, "draw_preview_line"):  # もしbulletが"draw_preview_line"を持っていれば予告線を表示する
                 bullet.draw_preview_line(screen)
         # ダメージ処理(プレイヤー)
         if pg.sprite.spritecollide(player.sprite, enemy_bullets, True, pg.sprite.collide_circle):
             if len(player_lifes) > 0:
                 player_lifes.sprites()[0].kill()
-            if len(player_lifes) == 0:
+            if len(player_lifes) == 0:  # 負け
+                game_over(screen)  # ゲームオーバー画面表示
                 break
         # ダメージ処理(敵)
         if pg.sprite.spritecollide(enemy.sprite, player_bullets, True, pg.sprite.collide_circle):
             if len(enemy_lifes) > 0:
                 enemy_lifes.sprites()[0].kill()
-            if len(enemy_lifes) == 0:
+            if len(enemy_lifes) == 0:  # 勝ち
+                game_clear(screen)  # ゲームクリア画面表示
                 break
         # 体力処理
         player_lifes.draw(screen)
@@ -983,8 +1010,6 @@ def lastbattle(screen: pg.Surface, clock: pg.time.Clock):
 
         pg.display.update()
         tmr += 1
-        if tmr % FPS == 0:
-            seconds += 1
         clock.tick(FPS)
 
 
