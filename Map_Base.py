@@ -80,7 +80,7 @@ SEEDS =[
             [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1],
             [1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1],
             [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0],
             [1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1],
             [1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1],
             [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
@@ -920,13 +920,19 @@ def lastbattle(screen: pg.Surface, clock: pg.time.Clock):
     引数：画像Surface, pg.time.Clock
     """
     pg.mixer.music.load("sound/boss_bgm.wav")  # BGM定義
+    pg.mixer.music.set_volume(0.4)  # BGM音量調整
     pg.mixer.music.play(loops = -1)  # BGMループ
     linear_bullet_snd = pg.mixer.Sound("sound/boss_linear_bullet.wav")  # 効果音定義
+    linear_bullet_snd.set_volume(0.5)  # 音量調整
     curve_bullet_snd = pg.mixer.Sound("sound/boss_curve_bullet.wav")  # 効果音定義
+    curve_bullet_snd.set_volume(0.7)  # 音量調整
     diffusion_bullet_snd = pg.mixer.Sound("sound/boss_diffusion_bullet.wav")  # 効果音定義
     shotgun_bullet_snd = pg.mixer.Sound("sound/boss_shotgun_bullet.wav")  # 効果音定義
+    shotgun_bullet_snd.set_volume(0.7)  # 音量調整
     player_bullet_snd = pg.mixer.Sound("sound/boss_player_bullet.wav")  # 効果音定義
+    player_bullet_snd.set_volume(0.5)  # 音量調整
     preview_line_snd = pg.mixer.Sound("sound/boss_linear_bullet.wav")  # 効果音定義（予告線）
+    preview_line_snd.set_volume(0.7)  # 音量調整
     preview_bullet_snd = pg.mixer.Sound("sound/boss_preview_bullet.wav")  # 効果音定義
     outline_left = BossOutline(x_left_outline)  # 左側境界線
     outline_right = BossOutline(x_right_outline)  # 右側境界線
@@ -988,7 +994,8 @@ def lastbattle(screen: pg.Surface, clock: pg.time.Clock):
             enemy_bullets.add(shotgun_bullet)
         # 拡散弾
         if tmr % 120 == 0:
-            diff_num = 8  # 拡散弾の数
+            diff_num_lis = [8, 10, 12, 14, 16, 18, 20]  # 拡散弾の数の候補
+            diff_num = random.choice(diff_num_lis)  # 拡散弾の数（毎回ランダム）
             for i in range(diff_num):
                 diffusion_bullet = BossDiffusionBullet(enemy_rct, 3, diff_num, i, GOLD)
                 enemy_bullets.add(diffusion_bullet)
