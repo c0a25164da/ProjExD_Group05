@@ -12,6 +12,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))  # この.pyファイルが
 WIDTH = 1240  # 横幅(x)
 HEIGHT = 680  # 縦幅(y)
 FPS = 60  # フレーム数
+TILE_SIZE = 55
+broke_tiles=pg.sprite.Group()
 
 # 移動範囲制限（ボス戦用）
 MARGIN = 10  # ボス専用
@@ -146,6 +148,7 @@ WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+CHOCOLATE = (200, 150, 50)
 MAGENTA = (255, 0, 255)
 NAVY = (0, 0, 128)
 GOLD = (255, 215, 0)
@@ -1109,7 +1112,7 @@ def main():
                     # プレイヤーを更新
                     player.rect.center = game_map.get_cell(player.row, player.col)["coor"]
                 if game_map.check_move(player.row, player.col) == 2:  # 移動した先が敵かの判定
-                    pass  # ここにバトルイベントなどを追加
+                    tile_game()  # ここにバトルイベントなどを追加
                 elif game_map.check_move(player.row,player.col) ==4: #移動した先がミニゲームマスかの判定
                     run_minigame(screen,clock) #ミニゲーム実行
                 if game_map.check_move(player.row, player.col) == 3:  # 移動した先がボスかの判定
@@ -1127,6 +1130,227 @@ def main():
 
         pg.display.update()
         clock.tick(FPS)
+
+
+def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
+    """
+    オブジェクトが画面内or画面外を判定し，真理値タプルを返す関数
+    引数：こうかとんや爆弾，ビームなどのRect
+    戻り値：横方向，縦方向のはみ出し判定結果（画面内：True／画面外：False）
+    """
+    yoko, tate = True, True
+    if obj_rct.left < 0 or WIDTH < obj_rct.right:
+        yoko = False
+    if obj_rct.top < 0 or HEIGHT < obj_rct.bottom:
+        tate = False
+    return yoko, tate
+
+
+class TileTile(pg.sprite.Sprite):
+    def __init__(self, x, y,TILE_SIZE):
+        super().__init__()
+        self.timer = random.randint(20,10000)
+        self.image = pg.Surface((TILE_SIZE, TILE_SIZE))  
+        self.image.fill(CHOCOLATE)  
+        self.rect = self.image.get_rect() #タイルの作成
+        self.rect.x = x
+        self.rect.y = y
+        
+
+    def update(self):
+        self.timer -= 1
+        if 0< self.timer <=1000:
+            self.image.fill((200, 150, 50))
+        elif self.timer <=0:
+            current_x = self.rect.x
+            current_y = self.rect.y
+            self.kill() #タイルそれぞれのカウントダウンがゼロになったとき、タイルを消す
+            broke_tiles.add(TileBroke_Tile(current_x,current_y,TILE_SIZE)) #代わりに触ると死亡するタイルをグループに追加
+            
+
+class TileBroke_Tile(pg.sprite.Sprite):
+    def __init__(self, x, y,TILE_SIZE):
+        super().__init__()
+        self.timer = random.randint(20,5000)
+        self.image = pg.Surface((TILE_SIZE, TILE_SIZE))  # 壊れたタイル
+        self.image.fill(RED)  # 落ちた先
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+
+
+class TileItem(pg.sprite.Sprite):
+    def __init__(self, x, y,TILE_SIZE):
+        super().__init__()
+        self.image = pg.Surface((TILE_SIZE-10, TILE_SIZE-10))  
+        self.image.fill(GREEN)  
+        self.rect = self.image.get_rect() #itemの作成
+        self.rect.x = x
+        self.rect.y = y
+    
+
+
+class TilePlayer(pg.sprite.Sprite):
+    """
+    ゲームキャラクター（こうかとん）に関するクラス
+    """
+    delta = {  # 押下キーと移動量の辞書
+        pg.K_UP: (0, -1),
+        pg.K_DOWN: (0, +1),
+        pg.K_LEFT: (-1, 0),
+        pg.K_RIGHT: (+1, 0),
+    }
+
+    def __init__(self, num: int, xy: tuple[int, int]):
+        """
+        こうかとん画像Surfaceを生成する
+        引数1 num：こうかとん画像ファイル名の番号
+        引数2 xy：こうかとん画像の位置座標タプル
+        """
+        super().__init__()
+        img0 = pg.transform.rotozoom(pg.image.load(f"fig/{num}.png"), 0, 0.9)
+        img = pg.transform.flip(img0, True, False)  # デフォルトのこうかとん
+        self.imgs = {
+            (+1, 0): img,  # 右
+            (+1, -1): pg.transform.rotozoom(img, 45, 0.9),  # 右上
+            (0, -1): pg.transform.rotozoom(img, 90, 0.9),  # 上
+            (-1, -1): pg.transform.rotozoom(img0, -45, 0.9),  # 左上
+            (-1, 0): img0,  # 左
+            (-1, +1): pg.transform.rotozoom(img0, 45, 0.9),  # 左下
+            (0, +1): pg.transform.rotozoom(img, -90, 0.9),  # 下
+            (+1, +1): pg.transform.rotozoom(img, -45, 0.9),  # 右下
+        }
+        self.dire = (+1, 0)
+        self.image = self.imgs[self.dire]
+        self.rect = self.image.get_rect()
+        self.rect.center = xy
+        self.speed = 10
+        self.state = "normal"  # 追加点
+        self.hyper_life = 0  # 追加点
+
+    def change_img(self, num: int, screen: pg.Surface):
+        """
+        こうかとん画像を切り替え，画面に転送する
+        引数1 num：こうかとん画像ファイル名の番号
+        引数2 screen：画面Surface
+        """
+        self.image = pg.transform.rotozoom(pg.image.load(f"fig/{num}.png"), 0, 0.9)
+        screen.blit(self.image, self.rect)
+
+    def update(self, key_lst: list[bool], screen: pg.Surface):
+        """
+        押下キーに応じてこうかとんを移動させる
+        引数1 key_lst：押下キーの真理値リスト
+        引数2 screen：画面Surface
+        """
+        sum_mv = [0, 0]
+        for k, mv in __class__.delta.items():
+            if key_lst[k]:
+                sum_mv[0] += mv[0]
+                sum_mv[1] += mv[1]
+        self.rect.move_ip(self.speed*sum_mv[0], self.speed*sum_mv[1])
+        if check_bound(self.rect) != (True, True):
+            self.rect.move_ip(-self.speed*sum_mv[0], -self.speed*sum_mv[1])
+        if not (sum_mv[0] == 0 and sum_mv[1] == 0):
+            self.dire = tuple(sum_mv)
+        self.image = self.imgs[self.dire]  
+        screen.blit(self.image, self.rect)
+
+
+class TilePoint():
+    """
+    取らなければいけないポイントと今まで取ったポイントを表示するためのクラス
+    """
+    def __init__(self):
+        self.point=0
+        self.fonto = pg.font.Font(None,40)
+
+    def update(self,screen:pg.Surface,itemnum:int):
+        """
+        現在のポイントを取得し、とらなければいけないポイントとともに表示する
+        """
+        txt = self.fonto.render(str(self.point)+"/"+str(int(itemnum*0.6+1)), True, (0,0,0))
+        screen.blit(txt,(0,0))
+
+
+
+def tile_game() -> str:
+    pg.display.set_caption("タイル落下ゲーム")
+    screen = pg.display.set_mode((WIDTH, HEIGHT))
+    bg_img = pg.Surface((WIDTH, HEIGHT))
+    pg.draw.rect(bg_img, (0,0,0),pg.Rect(0,0,WIDTH, HEIGHT))  #黒い矩形を描画
+
+    
+    bird = TilePlayer(3, (900, 400))
+    point = TilePoint()
+    tiles= pg.sprite.Group()
+    items=pg.sprite.Group()
+    
+    
+    cols = WIDTH // (TILE_SIZE+10)
+    rows = HEIGHT//(TILE_SIZE+10)
+    itemnum=0
+    finish =0
+
+    for col in range(cols):
+            for row in range(rows+1):
+                itemor=random.randint(0,20)
+                tiles.add(TileTile((col * (TILE_SIZE+10))-5,(row*(TILE_SIZE+10))-5, TILE_SIZE)) #画面にタイルを作成
+                if itemor == 0:
+                    items.add(TileItem((col * (TILE_SIZE+10)),(row*(TILE_SIZE+10)), TILE_SIZE)) #画面にアイテムを作成
+                    itemnum+=1
+
+
+    tmr = 0
+    clock = pg.time.Clock()
+    
+    while True:
+        key_lst = pg.key.get_pressed()
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                return 0
+            
+
+        for bird in pg.sprite.spritecollide(bird, broke_tiles, True): #プレイヤーと壊れたタイルが接触したか判定
+            bird.kill()
+            finish=1
+
+        for item in pg.sprite.spritecollide(bird, items, True): #プレイヤーがitemを取得したか判定
+            point.point+=1
+            item.kill()
+
+        if (point.point/itemnum)>0.6:
+            finish=2
+
+
+                
+        screen.blit(bg_img, [0, 0])
+        screen.fill((30, 30, 30))
+        
+        tiles.update()
+        tiles.draw(screen)
+        broke_tiles.update()
+        broke_tiles.draw(screen)
+        items.update()
+        items.draw(screen)
+        point.update(screen,itemnum)
+        bird.update(key_lst, screen)
+        pg.display.update()
+        tmr += 1
+        clock.tick(50)
+        if finish == 1: #gameover判定
+            time.sleep(1)
+            items.empty()
+            broke_tiles.empty()
+            tiles.empty()
+            return "LOSE"
+        elif finish == 2:   #クリア判定
+            time.sleep(1)
+            items.empty()
+            broke_tiles.empty()
+            tiles.empty()
+            return "WIN"
+
 
 # ボス戦（弾幕ゲー）用関数
 def lastbattle(screen: pg.Surface, clock: pg.time.Clock):
