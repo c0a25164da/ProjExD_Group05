@@ -1609,7 +1609,7 @@ def main():
                                 game_map.map_data[row][col]["type"] = 0  # 敵を倒したのでマスのtypeを0に変更
                                 current_enemy.kill()
                     if game_map.check_move(player.row, player.col) == 3:
-                        last_buttle_judge = lastbattle(screen, clock)  # 終了したらTrue
+                        last_buttle_judge = lastbattle(screen, clock, player.hp)  # 終了したらTrue
                     if game_map.check_move(player.row, player.col) == 4:
                         if run_minigame(screen,clock)==True:
                             if player.hp<=200:
@@ -1715,10 +1715,10 @@ def main():
 
 
 # ボス戦（弾幕ゲー）用関数
-def lastbattle(screen: pg.Surface, clock: pg.time.Clock) -> bool:
+def lastbattle(screen: pg.Surface, clock: pg.time.Clock, player_life: int) -> bool:
     """
     ボス戦の弾幕ゲーを処理する関数
-    引数：画像Surface, pg.time.Clock
+    引数：画像Surface, pg.time.Clock, プレイヤーの体力
     戻り値：True
     """
     pg.mixer.music.load("sound/boss_bgm.wav")  # BGM定義
@@ -1753,6 +1753,9 @@ def lastbattle(screen: pg.Surface, clock: pg.time.Clock) -> bool:
         player_lifes.add(BossLife(coors[0]))
         enemy_lifes.add(BossLife(coors[1]))
     tmr = 0  # 1フレームごとのカウント
+    # 体力調整
+    for _ in range(player // 10):
+        player_lifes.sprites()[0].kill()
     # bool型定義(判定)
     space_judge = False  # プレイヤーの攻撃フラグ
 
