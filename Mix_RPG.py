@@ -158,14 +158,39 @@ NEON_RED = (255, 50, 50)
 # 敵のステータスデータ（モンスター図鑑のようなもの）
 MONSTER_DATA = {
     "スライム": {"max_hp": 40, "atk": 10, "weight": 40}, 
-    "ゴブリン": {"max_hp": 60, "atk": 20, "weight": 25},
-    "ミミック": {"max_hp": 100, "atk": 30, "weight": 20},
-    "ゴーレム": {"max_hp": 400, "atk": 30, "weight": 10},
-    "ドラゴン": {"max_hp": 500, "atk": 60, "weight": 5} 
+    "ゴブリン": {"max_hp": 70, "atk": 20, "weight": 25},
+    "ミミック": {"max_hp": 120, "atk": 30, "weight": 20},
+    "ゴーレム": {"max_hp": 250, "atk": 35, "weight": 10},
+    "ドラゴン": {"max_hp": 450, "atk": 45, "weight": 5} 
 }
-
 # ======↑定数定義↑======
 
+def load_attack_sounds():
+    """
+    敵の攻撃音をロードする関数
+    返り値：辞書型で敵の名前と攻撃音を紐付けたもの
+    """
+    return {
+        "スライム": pg.mixer.Sound("sound/slime_attack.wav"),
+        "ゴブリン": pg.mixer.Sound("sound/goblin_attack.wav"),
+        "ミミック": pg.mixer.Sound("sound/mimic_attack.wav"),
+        "ゴーレム": pg.mixer.Sound("sound/golem_attack.wav"),
+        "ドラゴン": pg.mixer.Sound("sound/dragon_attack.wav"),
+        "default": pg.mixer.Sound("sound/enemy_attack.wav")
+    }
+
+
+def load_battle_sounds():
+    """
+    バトル音をロードする関数
+    返り値：辞書型でバトル音を紐付けたもの
+    """
+    return {
+        "attack": pg.mixer.Sound("sound/boss_player_bullet.wav"),
+        "heal": pg.mixer.Sound("sound/heal.wav"),
+        "escape": pg.mixer.Sound("sound/escape.wav"),
+        "default": pg.mixer.Sound("sound/heal.wav")
+    }
 
 # ===↓class定義↓===
 
@@ -395,7 +420,7 @@ class Player(pg.sprite.Sprite):
         self.name = "勇者"
         self.max_hp = 200
         self.hp = 200
-        self.atk = 30
+        self.atk = 45
         #================
 
     def move(self, move_row: int, move_col: int) -> str | None:
@@ -1449,10 +1474,10 @@ def game_clear(screen: pg.Surface):
 
 # ===↑関数定義↑===
 
-
 def main():
     pg.display.set_caption("ごちゃまぜRPG")
-
+    pg.init()
+    pg.mixer.init()
     # ===↓変数定義↓===
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     clock = pg.time.Clock()
@@ -1478,11 +1503,13 @@ def main():
     start_coor = game_map.get_cell(5, 10)["coor"]  # 初期位置
     player = Player(start_coor, game_map)  # プレイヤー定義
     players = pg.sprite.GroupSingle(player)  # プレイヤー用グループ（単体）
-    game_state = "MAP"
-    battle_phase = "COMMAND"
-    battle_message = ""
-    next_turn = "PLAYER"
-    battle_cursor = 0
+    game_state = "MAP"  # ゲーム状態（MAP:マップ, BATTLE:戦闘）
+    battle_phase = "COMMAND" # 戦闘フェーズ（COMMAND:コマンド選択, ATTACK:攻撃, ENEMY_ATTACK:敵の攻撃）
+    battle_message = "" # 戦闘メッセージ
+    next_turn = "PLAYER" # 次のターン（PLAYER:プレイヤー, ENEMY:敵）
+    battle_cursor = 0 # 戦闘コマンドカーソル位置
+    enemy_attack_sounds = load_attack_sounds()  # 敵の攻撃音をロード 
+    sounds = load_battle_sounds() # 戦闘音をロード
     current_enemy = None
     font = pg.font.SysFont("msgothic", 40)
     damage_tmr = 0 # ダメージを表示するタイマー
@@ -1579,31 +1606,58 @@ def main():
                             trap_snd.play()
             elif game_state == "BATTLE":
                 if event.type == pg.KEYDOWN:
-                    # 1. コマンド選択フェーズ
+                    # 1. メインコマンド選択フェーズ (たたかう / にげる)
                     if battle_phase == "COMMAND":
-                        if event.key == pg.K_UP: battle_cursor = 0
-                        elif event.key == pg.K_DOWN: battle_cursor = 1
+                        if event.key == pg.K_UP: 
+                            battle_cursor = (battle_cursor - 1) % 2
+                        elif event.key == pg.K_DOWN: 
+                            battle_cursor = (battle_cursor + 1) % 2
                         elif event.key == pg.K_RETURN:
-                            if battle_cursor == 0: # たたかう
-                                current_enemy.image = current_enemy.battle_image
-                                current_enemy.rect = current_enemy.image.get_rect(center=(640, 300))
-                                # プレイヤー攻撃計算
-                                is_crit = random.random() < 0.08
-                                dmg = int(player.atk * random.uniform(0.9, 1.1) * (1.5 if is_crit else 1.0))
-                                current_enemy.hp = max(0, current_enemy.hp - dmg)
-                                battle_message = f"クリティカル！" if is_crit else f"{player.name}の攻撃！"
-                                battle_message += f" {dmg}のダメージ！"
-                                battle_phase = "MESSAGE"
-                                next_turn = "WIN" if current_enemy.hp <= 0 else "ENEMY"
+                            if battle_cursor == 0: # たたかう選択 -> サブコマンドへ
+                                battle_phase = "SUB_COMMAND"
+                                battle_cursor = 0 # サブコマンドのカーソル初期化
                             else: # にげる
+                                sounds["escape"].play()
                                 battle_message = "無事に逃げ切った！"
                                 battle_phase = "MESSAGE"
                                 next_turn = "ESCAPE"
 
-                    # 2. メッセージ送りフェーズ
+                    # 2. サブコマンド選択フェーズ (こうげき / かいふく / もどる)
+                    elif battle_phase == "SUB_COMMAND":
+                        if event.key == pg.K_UP: 
+                            battle_cursor = (battle_cursor - 1) % 3
+                        elif event.key == pg.K_DOWN: 
+                            battle_cursor = (battle_cursor + 1) % 3
+                        elif event.key == pg.K_RETURN:
+                            if battle_cursor == 0: # こうげき（物理攻撃）
+                                current_enemy.image = current_enemy.battle_image
+                                current_enemy.rect = current_enemy.image.get_rect(center=(640, 300))
+                                is_crit = random.random() < 0.08
+                                dmg = int(player.atk * random.uniform(0.9, 1.1) * (1.5 if is_crit else 1.0))
+                                current_enemy.hp = max(0, current_enemy.hp - dmg)
+                                sounds["attack"].play()
+                                battle_message = f"クリティカル！" if is_crit else f"{player.name}の攻撃！"
+                                battle_message += f" {dmg}のダメージ！"
+                                battle_phase = "MESSAGE"
+                                next_turn = "WIN" if current_enemy.hp <= 0 else "ENEMY"
+                            elif battle_cursor == 1: # かいふく（回復魔法）
+                                heal_amt = 50
+                                player.hp = min(player.max_hp, player.hp + heal_amt)
+                                sounds["heal"].play()
+                                battle_message = f"{player.name}は回復魔法を唱えた！ HPが{heal_amt}回復した！"
+                                battle_phase = "MESSAGE"
+                                next_turn = "ENEMY"
+                            else: # もどる（メインコマンドへ戻る）
+                                battle_phase = "COMMAND"
+                                battle_cursor = 0
+
+                    # 3. メッセージ送りフェーズ
                     elif battle_phase == "MESSAGE":
                         if event.key == pg.K_RETURN:
                             if next_turn == "ENEMY":
+                                # 敵の名前をもとに効果音を取得して再生（登録されていない場合はデフォルト）
+                                sound = enemy_attack_sounds.get(current_enemy.name, enemy_attack_sounds["default"])
+                                sound.play()
                                 # 敵の攻撃計算
                                 is_crit = random.random() < 0.08
                                 dmg = int(current_enemy.atk * random.uniform(0.9, 1.1) * (1.5 if is_crit else 1.0))
@@ -1613,9 +1667,12 @@ def main():
                                 next_turn = "LOSE" if player.hp <= 0 else "PLAYER"
                             elif next_turn == "PLAYER":
                                 battle_phase = "COMMAND"
+                                battle_cursor = 0
                             elif next_turn == "WIN":
                                 row, col = game_map.get_id(current_enemy.original_coor[0], current_enemy.original_coor[1])
-                                game_map.map_data[row][col]["type"] = 0  # 敵を倒したのでマスのtypeを0に変更
+                                #==========
+                                game_map.map_data[row][col]["type"] = 0  
+                                #==========
                                 game_state = "MAP"
                                 current_enemy.kill()
                             elif next_turn == "ESCAPE":
@@ -1663,11 +1720,19 @@ def main():
             screen.blit(player_hp_txt, (100, 520))
             
             if battle_phase == "COMMAND":
-                screen.blit(font.render("たたかう", True, WHITE), (800, 520))
-                screen.blit(font.render("にげる", True, WHITE), (800, 580))
-                # カーソル
-                y = 520 if battle_cursor == 0 else 580
-                pg.draw.polygon(screen, WHITE, [(750, y), (750, y+30), (780, y+15)])
+                # 選択中の項目を赤、それ以外を白にする
+                color_0 = (255, 0, 0) if battle_cursor == 0 else WHITE
+                color_1 = (255, 0, 0) if battle_cursor == 1 else WHITE
+                screen.blit(font.render("たたかう", True, color_0), (800, 520))
+                screen.blit(font.render("にげる", True, color_1), (800, 580))
+            elif battle_phase == "SUB_COMMAND":
+                # 選択中の項目を赤、それ以外を白にする
+                color_0 = (255, 0, 0) if battle_cursor == 0 else WHITE
+                color_1 = (255, 0, 0) if battle_cursor == 1 else WHITE
+                color_2 = (255, 0, 0) if battle_cursor == 2 else WHITE
+                screen.blit(font.render("こうげき", True, color_0), (800, 500))
+                screen.blit(font.render("かいふく", True, color_1), (800, 540))
+                screen.blit(font.render("もどる", True, color_2), (800, 580))
             elif battle_phase == "MESSAGE":
                 # メッセージの描画
                 msg_txt = font.render(battle_message, True, WHITE)
