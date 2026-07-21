@@ -11,7 +11,7 @@
 * ラストバトル（ボス戦）：最後に待ち受けるボスの凶悪で激しい弾幕をよけきり、見事撃破すればゲームクリア！「ノーダメ」でボスを撃破できたら伝説だ！！！
 
 ## マップ
-![titile](readme_img/map.png)
+![titile](readme_img/map_warp.png)
 
 ## 罠
 ![titile](readme_img/trap.png)
