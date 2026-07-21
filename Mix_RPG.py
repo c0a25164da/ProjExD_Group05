@@ -1610,6 +1610,8 @@ def main():
                                     result = tile_game(current_enemy.image)
                                     if result == "QUIT":  # ゲーム終了
                                         return
+                                    elif result == "LOSE":
+                                        player.hp -= current_enemy.atk
                                     elif result == "WIN":
                                         row, col = game_map.get_id(current_enemy.original_coor[0], current_enemy.original_coor[1])
                                         game_map.map_data[row][col]["type"] = 0  # 敵を倒したのでマスのtypeを0に変更
