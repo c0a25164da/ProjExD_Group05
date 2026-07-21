@@ -1641,7 +1641,7 @@ def main():
                                 battle_phase = "MESSAGE"
                                 next_turn = "WIN" if current_enemy.hp <= 0 else "ENEMY"
                             elif battle_cursor == 1: # かいふく（回復魔法）
-                                heal_amt = 50
+                                heal_amt = 100
                                 player.hp = min(player.max_hp, player.hp + heal_amt)
                                 sounds["heal"].play()
                                 battle_message = f"{player.name}は回復魔法を唱えた！ HPが{heal_amt}回復した！"
