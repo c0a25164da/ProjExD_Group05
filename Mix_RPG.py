@@ -40,8 +40,8 @@ SEEDS = [
             [1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1],
             [1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1],
             [1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 2, 0, 0, 0, 0, 1, 1, 0, 1, 1],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0],
-            [0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 0],
+            [0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 6, 0, 1, 0, 0, 0, 0, 0, 0, 0],
             [1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1],
             [1, 0, 0, 1, 1, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1],
             [1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1],
@@ -125,7 +125,7 @@ SEEDS = [
         ],
         [  # マップ番号(2, 2) 右下
             [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+            [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 6, 1, 1],
             [1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
             [1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 1, 1],
             [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
@@ -137,6 +137,13 @@ SEEDS = [
         ],
     ],
 ]
+# イベント（ワープ）マスの対応表
+# キー：(現在のマップ番号y, 現在のマップ番号x, 現在マス行, 現在マス列)
+# 値　：(ワープ先マップ番号y, ワープ先マップ番号x, ワープ先マス行, ワープ先マス列)
+WARP_POINTS = {
+    (0, 1, 5, 10): (2, 2, 1, 17),  # 真ん中上マップ → 右下マップ
+    (2, 2, 1, 17): (0, 1, 5, 10),  # 右下マップ → 真ん中上マップ（戻り用）
+}
 
 # 色
 # ===↓色定義↓===
@@ -213,6 +220,7 @@ class GameMap:
         self.rocks = pg.sprite.Group()  # 岩のグループ作成
         self.minigame_tiles=pg.sprite.Group() #ミニゲームマス表示用のグループ作成
         self.traps = pg.sprite.Group()  # 罠のグループ作成
+        self.tereport_tiles=pg.sprite.Group() #テレポートマスのグループ作成
 
     def _create_map_data(self) -> list[list[dict]]:
         """
@@ -254,6 +262,7 @@ class GameMap:
         self.rocks.empty()  # 前のマップの岩を全て削除
         self.minigame_tiles.empty() #前のマップのミニゲームマスをすべて削除
         self.traps.empty()  # 前のマップの罠を消去
+        self.tereport_tiles.empty() #前のマップのテレポートマスをすべて削除
         seed = SEEDS[map_y][map_x]  # 指定された座標のマップのデータを取得
         for row in range(self.y_num):
             for col in range(self.x_num):
@@ -261,11 +270,14 @@ class GameMap:
                     rock = Rock(self.map_data[row][col]["coor"])  # 岩を生成
                     self.rocks.add(rock)  # 岩を岩グループに追加
                 elif seed[row][col] == 4:
-                    minigame_tile = MinigameTile(self.map_data[row][col]["coor"]) #ミニゲームマスの見た目生成
+                    minigame_tile = MinigameTile(self.map_data[row][col]["coor"]) #ミニゲームマス生成を生成
                     self.minigame_tiles.add(minigame_tile)
                 elif seed[row][col] == 5:  # 5だったら罠を作る
                     trap = Trap(self.map_data[row][col]["coor"]) #罠生成
                     self.traps.add(trap) #罠を罠グループに追加
+                elif seed[row][col] == 6:
+                    tereport_tile =Tereport(self.map_data[row][col]["coor"]) #テレポートマスを生成
+                    self.tereport_tiles.add(tereport_tile)
                 self.map_data[row][col]["type"] = seed[row][col]  # seedに沿ってtypeを上書（マップ形成）
 
     def check_move(self, row: int, col: int) -> int:
@@ -321,6 +333,7 @@ class GameMap:
         self.rocks.draw(screen)
         self.minigame_tiles.draw(screen)
         self.traps.draw(screen)
+        self.tereport_tiles.draw(screen)
 
 
 class Rock(pg.sprite.Sprite):
@@ -356,6 +369,20 @@ class MinigameTile(pg.sprite.Sprite):
         self.image = pg.transform.scale(self.image,(52,52))
         self.rect = self.image.get_rect(center = coor)  # rect.centerにcoorを設定
     
+
+class Tereport(pg.sprite.Sprite):
+    """
+    ワープマスの見た目に関するもの
+    """
+    def __init__(self, coor: tuple[int, int]):
+        """
+        引数：マスの中心座標tuple(x, y)
+        """
+        super().__init__()
+        self.image = pg.image.load("img/Tereportpoint.png") #イベントマス画像
+        self.image = pg.transform.scale(self.image,(52,52))
+        self.rect = self.image.get_rect(center = coor)  # rect.centerにcoorを設定
+
 
 class Enemy(pg.sprite.Sprite):
     """
@@ -1516,6 +1543,7 @@ def main():
     last_buttle_judge = False  # ボス戦を終了したかの判定
     enemy_event_judge = False  # イベントの連続発生を防ぐ判定（敵）
     minigame_event_judge = False  # イベントの連続発生を防ぐ判定（ミニゲーム）
+    tereport_event_judge = False  # イベントの連続発生を防ぐ判定（テレポート）
     # ===↑変数定義↑===
 
     while True:
@@ -1604,6 +1632,22 @@ def main():
                             player.hp -= 30
                             damage_tmr = 60  # ダメージを表示するタイマー
                             trap_snd.play()
+                    if game_map.check_move(player.row,player.col) == 6:
+                        warp_key = (current_map_y, current_map_x, player.row, player.col)
+                        if warp_key in WARP_POINTS:
+                        # ワープ先の情報を取得して現在地を更新
+                            current_map_y, current_map_x, player.row, player.col = WARP_POINTS[warp_key]
+                            game_map.load_map(current_map_y, current_map_x)  # ワープ先のマップをロード
+                            enemys.empty()  # 移動前のマップに表示されている敵を削除
+                            bossgp.empty()  # 移動前のマップに表示されているボスを削除
+                        # 敵の座標読み込み
+                        for coor in game_map.get_enemy_positions():
+                            enemys.add(Enemy(coor))
+                        # ボスの座標読み込み
+                        for coor in game_map.get_boss_positions():
+                            bossgp.add(Boss(coor))
+                        # プレイヤーを更新
+                        player.rect.center = game_map.get_cell(player.row, player.col)["coor"]
             elif game_state == "BATTLE":
                 if event.type == pg.KEYDOWN:
                     # 1. メインコマンド選択フェーズ (たたかう / にげる)
