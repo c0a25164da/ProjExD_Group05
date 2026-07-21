@@ -69,9 +69,9 @@ SEEDS = [
             [1, 0, 0, 1, 1, 1, 2, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0],
             [1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0],
             [1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1],
-            [1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1],
-            [1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 2, 0, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 0, 0, 1, 1, 1, 5, 5, 1, 1, 1, 1, 0, 0, 1, 1, 1],
+            [1, 1, 1, 1, 1, 0, 0, 5, 5, 5, 5, 5, 1, 1, 1, 0, 2, 0, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1],
         ],
         [  # 初期位置 マップ番号(1, 1) 中心
             [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -100,15 +100,15 @@ SEEDS = [
     ],
     [  # 最下段
         [  # マップ番号(2, 0) 左下
-            [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 5, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 5, 5, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1],
-            [1, 1, 1, 2, 5, 5, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1],
-            [1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0],
-            [1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0],
-            [1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 2, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 5, 5, 5, 2, 5, 2, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 5, 5, 1, 1, 1, 1, 2, 5, 5, 5, 1, 1, 1, 1, 1],
+            [1, 1, 1, 2, 5, 5, 1, 1, 1, 1, 1, 1, 1, 5, 2, 2, 5, 5, 1, 1],
+            [1, 5, 5, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5, 1, 1, 5, 5, 0],
+            [1, 5, 1, 1, 1, 1, 1, 5, 5, 2, 5, 1, 1, 1, 5, 1, 1, 2, 5, 0],
+            [1, 2, 5, 5, 5, 5, 2, 5, 1, 1, 5, 2, 5, 5, 2, 5, 5, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 5, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1, 2, 5, 2, 2, 5, 5, 5, 5, 1, 1, 1, 1, 1, 1],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         ],
         [  # マップ番号(2, 1) 真ん中下
@@ -489,7 +489,11 @@ class Trap(pg.sprite.Sprite):
 
 
 class TileTile(pg.sprite.Sprite):
-    def __init__(self, x, y, TILE_SIZE, enemy_img):
+    def __init__(self, x: int, y: int, TILE_SIZE: int, enemy_img: pg.Surface):
+        """
+        通常タイルの初期設定
+        引数：x座標, y座標, タイルのサイズ, 敵の画像
+        """
         super().__init__()
         self.timer = random.randint(20, 10000)
         self.image = pg.Surface((TILE_SIZE, TILE_SIZE))  
@@ -501,7 +505,7 @@ class TileTile(pg.sprite.Sprite):
         
     def update(self, broke_tiles: pg.sprite.Group):
         """
-        引数：壊れたアイルを追加する先のグループ
+        引数：壊れたタイルを追加する先のグループ
         """
         self.timer -= 1
         if 0< self.timer <= 1000:
@@ -514,7 +518,11 @@ class TileTile(pg.sprite.Sprite):
             
 
 class TileBroke_Tile(pg.sprite.Sprite):
-    def __init__(self, x, y, TILE_SIZE, enemy_img):
+    def __init__(self, x: int, y: int, TILE_SIZE: int, enemy_img: pg.Surface):
+        """
+        壊れたタイルの初期設定
+        引数：x座標, y座標, タイルのサイズ, 敵の画像
+        """
         super().__init__()
         self.timer = random.randint(20, 5000)
         self.image = pg.transform.scale(enemy_img, (TILE_SIZE, TILE_SIZE))
@@ -524,7 +532,11 @@ class TileBroke_Tile(pg.sprite.Sprite):
 
 
 class TileItem(pg.sprite.Sprite):
-    def __init__(self, x, y, TILE_SIZE):
+    def __init__(self, x: int, y: int, TILE_SIZE: int):
+        """
+        アイテムタイルの初期設定
+        引数：x座標, y座標, タイルのサイズ
+        """
         super().__init__()
         self.image = pg.Surface((TILE_SIZE-10, TILE_SIZE-10))  
         self.image.fill(GREEN)  
@@ -606,9 +618,10 @@ class TilePoint():
         self.point = 0
         self.fonto = pg.font.Font(None, 40)
 
-    def update(self, screen:pg.Surface, itemnum:int):
+    def update(self, screen: pg.Surface, itemnum: int):
         """
         現在のポイントを取得し、とらなければいけないポイントとともに表示する
+        引数：画像Surface, アイテム数
         """
         txt = self.fonto.render(str(self.point) + "/" + str(int(itemnum*0.6+1)), True, (0, 0, 0))
         screen.blit(txt, (0, 0))
@@ -1059,9 +1072,10 @@ def check_bound(obj_rct: pg.Rect) -> tuple[bool, bool]:
     return yoko, tate
 
 
-def tile_game(enemy_img) -> str:
+def tile_game(enemy_img: pg.Surface) -> str:
     """
     タイルゲーム
+    引数：敵の画像
     """
     pg.mixer.music.load("sound/boss_bgm.wav")  # BGM定義
     pg.mixer.music.set_volume(0.3)  # BGM音量調整
